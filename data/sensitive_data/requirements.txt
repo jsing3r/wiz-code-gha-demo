@@ -1,0 +1,11 @@
+litellm==1.39.5
+vyper==0.3.7
+gradio==3.33.1
+# pytest 
+# wrapt==1.13.2
+# requests==2.26.0
+# urllib3==1.26.7
+# testcontainers==3.4.2
+# packaging==21.0
+# aiohttp==3.7.4
+# celery==5.1.2
