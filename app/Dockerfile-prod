@@ -1,0 +1,26 @@
+# Use the official Node.js 16-alpine image as the base image
+FROM node:16-alpine
+
+# Create and change to the app directory
+WORKDIR /usr/src/app
+
+# Copy package.json and package-lock.json
+COPY package*.json ./
+
+# Install app dependencies
+RUN npm install
+
+# Copy the app source code
+COPY . .
+
+# Create fake sensitive data
+RUN echo "amqp://test:test@rabbit:5672" > /usr/src/app/amqp_creds.txt
+RUN echo "AKIAQ3EGPILNCMQYAOSD 8YRhd4JFjCItqJFaiYXyTqULMXdEd/P9S1HlXtBF" > /usr/src/app/aws-creds.txt
+RUN echo "AZURE_CLIENT_ID=037aa433-b922-4829-224d-98945ecd52fe\n// AZURE_CLIENT_SECRET=W4I8Q~2FXXNrvznED1uR2Rv-SYmGCE5kgBgXodq7" > /usr/src/app/azure-creds.txt
+RUN echo "GITHUB_TOKEN=ghp_1a4v3c7d9e6f7g8h9i0j" > /usr/src/app/github-creds.txt
+
+# Expose the port the app runs on
+EXPOSE 3000
+
+# Define the command to run the app
+CMD ["npm", "start"]

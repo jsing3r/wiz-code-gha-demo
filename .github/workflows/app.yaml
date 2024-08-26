@@ -1,0 +1,134 @@
+name: Deploy App Service
+
+on:
+  #
+  # Deploy the microservice on push to the main branch of this code repository.
+  #
+  push: 
+    branches:
+      - main
+    paths:
+      - app/**
+
+  #
+  # Allows deployment to be invoked manually through the GitHub Actions user interface.
+  #
+  workflow_dispatch: 
+
+jobs:
+
+  Deploy_App_Service:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    
+    env:
+      # Set environment variables used in the workflow
+      VERSION: ${{ github.sha }}
+      CONTAINER_REGISTRY: ${{ secrets.CONTAINER_REGISTRY }}
+      REGISTRY_UN: ${{ secrets.REGISTRY_UN }}
+      REGISTRY_PW: ${{ secrets.REGISTRY_PW  }}
+      IMAGE_TAG: latest
+      WIZ_CLIENT_ID: ${{ secrets.WIZ_CLIENT_ID }}
+      WIZ_CLIENT_SECRET: ${{ secrets.WIZ_CLIENT_SECRET }}
+      WIZ_VULN_POLICY: "Default vulnerabilities policy"
+      WIZ_SENSITIVE_DATA_POLICY: "Default sensitive data policy"
+      WIZ_SECRETS_POLICY: "Default secrets policy"
+      WIZ_IAC_POLICY: "Default IaC policy"
+      NAME: app
+      DIRECTORY: app
+
+    steps:
+      
+      # Checks out your repository under $GITHUB_WORKSPACE, so the workflow can access it
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT }}
+
+      #
+      # Builds the Docker image using a custom script.
+      #
+      - name: Build
+        run: ./scripts/cd/build-image.sh
+
+      # Downloads and sets up the Wiz CLI tool
+      - name: Download Wiz CLI
+        run: curl -o wizcli https://wizcli.app.wiz.io/latest/wizcli && chmod +x wizcli
+
+      # Authenticates the Wiz CLI with provided credentials
+      - name: Authenticate to Wiz
+        run: sudo -E ./wizcli auth --id "$WIZ_CLIENT_ID" --secret "$WIZ_CLIENT_SECRET"
+
+      # Scans Infrastructure as Code (IaC) files using Wiz CLI
+      - name: Wiz CLI IaC Scan
+        run: sudo -E ./wizcli iac scan --path "." -p "$WIZ_IAC_POLICY" -p "$WIZ_SECRETS_POLICY" --tag github_action_run_id=${{ github.run_id }} -o iac-scan-results.sarif,sarif,true --policy-hits-only
+        continue-on-error: true
+        
+      # Uncomment this block if you want to upload the SARIF file for the IaC scan results to GitHub (only works when repo is public)
+      # - name: Upload SARIF file IaC
+      #   uses: github/codeql-action/upload-sarif@v3
+      #   with:
+      #     sarif_file: iac-scan-results.sarif
+      #     category: wiz-iac
+
+      # Scans directories for vulnerabilities using Wiz CLI
+      - name: Wiz CLI Directory Scan
+        run: sudo -E ./wizcli dir scan --path "." -p "$WIZ_VULN_POLICY" -p "$WIZ_SECRETS_POLICY" --tag github_action_run_id=${{ github.run_id }} -o dir-scan-results.sarif,sarif,true --policy-hits-only
+        continue-on-error: true
+        
+      # Uncomment this block if you want to upload the SARIF file for the directory scan results to GitHub (only works when repo is public)
+      # - name: Upload SARIF file Dir
+      #   uses: github/codeql-action/upload-sarif@v3
+      #   with:
+      #     sarif_file: dir-scan-results.sarif
+      #     category: wiz-dir
+
+      # Scans the Docker image for vulnerabilities using Wiz CLI
+      - name: Wiz CLI image scan
+        id: scan
+        run: |-
+          sudo -E ./wizcli docker scan -i ${CONTAINER_REGISTRY}/${NAME}:${VERSION} --sensitive-data --secrets --policy "$WIZ_SECRETS_POLICY" --policy "$WIZ_VULN_POLICY" --policy "$WIZ_SENSITIVE_DATA_POLICY" --policy-hits-only \
+          --driver mountWithLayers --dockerfile "./${DIRECTORY}/Dockerfile-prod" --output wiz-output.json,sarif,true --tag github_action_run_id=${{ github.run_id }}
+        continue-on-error: true
+
+      # Uncomment this block if you want to upload the SARIF file for the image scan results to GitHub (only works when repo is public)
+      # - name: Upload SARIF file
+      #   uses: github/codeql-action/upload-sarif@v3
+      #   with:
+      #     sarif_file: wiz-output.json
+      #     category: wiz
+      #     token: ${{ secrets.PAT }}
+
+      #
+      # Publishes the Docker image to the container registry.
+      #
+      - name: Publish
+        run: ./scripts/cd/push-image.sh
+
+      # Sets up AWS CLI using provided credentials
+      - name: Set up AWS CLI
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+
+      # Tags the Docker image in the registry using Wiz CLI
+      - name: Run Wiz CLI image tag
+        run: sudo -E ./wizcli docker tag -i ${CONTAINER_REGISTRY}/${NAME}:${VERSION}
+
+      #
+      # Installs Kubectl and connects it to the Kubernetes cluster.
+      #
+      # https://github.com/marketplace/actions/kubernetes-cli-kubectl
+      #
+      - uses: tale/kubectl-action@v1
+        with:
+          base64-kube-config: ${{ secrets.KUBE_CONFIG }}
+          kubectl-version: v1.24.2
+      
+      #
+      # Expands the configuration template and deploys the microservice.
+      #
+      - name: Deploy
+        run: ./scripts/cd/deploy.sh
