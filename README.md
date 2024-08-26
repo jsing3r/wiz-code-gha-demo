@@ -9,15 +9,6 @@ This demo environment showcases the CI/CD features of Wiz Code using a real worl
 1. [Introduction](#wiz-code-github-actions-demo-magic_wand)
 2. [Video Walkthroughs](#video-walkthroughs)
    - [Setup & Deployment](#setup-and-deployment)
-   - [Enable VCS Connector]
-   - [CI/CD Demo]
-   - [PR Scanning Demo]
-   - [VS Code Demo]
-   - [Wiz CLI Demo]
-   - [Admission Controller Demo]
-   - [Image Trust]
-   - [PR Fixes]
-   - [Pre-Commit Hooks]
 3. [Setup](#setup)
 4. [Destroy Demo Process](#destory-demo-process-boom)
 5. [Contact](#contact) 
