@@ -20,7 +20,7 @@ This demo environment showcases the CI/CD features of Wiz Code using a real worl
    - [Pre-Commit Hooks]
 3. [Setup](#setup)
 4. [Destroy Demo Process](#destory-demo-process-boom)
-5. [Contact](#contact) :mage_man:
+5. [Contact](#contact) 
 
 ## Video Walkthroughs
 
