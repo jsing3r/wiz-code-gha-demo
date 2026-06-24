@@ -22,7 +22,7 @@ This demo environment showcases the CI/CD features of Wiz Code using a real worl
   <img src="https://github.com/wiz-sec/wiz-code-gha-demo/raw/main/images/video1.png" alt="Setup & Deployment" width="600"/>
 </a>
 
-## Setup #
+## Setup A
 
 **Step 1:** Clone or download repo locally.
 
